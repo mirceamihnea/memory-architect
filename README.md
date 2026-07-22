@@ -49,7 +49,10 @@ The server listens on `http://localhost:3000`.
 
 ## Screenshots
 
-_Coming soon._
+| | |
+|---|---|
+| ![Hallway](docs/screenshots/hallway.jpg) | ![Investigation desk](docs/screenshots/investigation-desk.jpg) |
+| ![Keys room](docs/screenshots/keys-room.jpg) | ![Ending](docs/screenshots/ending.jpg) |
 
 ## Status
 
