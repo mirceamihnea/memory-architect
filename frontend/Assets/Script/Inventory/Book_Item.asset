@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48483931663674ad18c3190687e71735, type: 3}
+  m_Name: Book_Item
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: book_01
+  itemName: Book
+  icon: {fileID: 21300000, guid: d06673e0ab9040b49b92ebfe3a80e5c7, type: 3}
+  heldPrefab: {fileID: 389766713518883450, guid: 3685d6f2a9c032c4d87d89c16792cf48, type: 3}
+  description: An old dusty book.
+  heldPosition: {x: -0.6, y: -0.5, z: 0.65}
+  heldRotation: {x: 40, y: 200, z: 20}
+  heldScale: {x: 14, y: 14, z: 14}

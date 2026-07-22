@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48483931663674ad18c3190687e71735, type: 3}
+  m_Name: Lupa_Item
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: lupa_01
+  itemName: Lupa
+  icon: {fileID: 21300000, guid: 8f2817f5444a8d342bcaf322475f70a1, type: 3}
+  heldPrefab: {fileID: 4256886214598702043, guid: 488c38c7f75d1432282417066c9cb89c, type: 3}
+  description: A magnifying glass.
+  heldPosition: {x: 0.55, y: -0.15, z: 0.45}
+  heldRotation: {x: -20, y: 0, z: 40}
+  heldScale: {x: 1, y: 1, z: 1}

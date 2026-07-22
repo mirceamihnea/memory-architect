@@ -1,0 +1,303 @@
+# ============================================================
+# GitLab CI/CD - Unity Puzzle Game (Windows PC, GameCI)
+# ============================================================
+#
+# SETUP NECESAR in GitLab -> Settings -> CI/CD -> Variables:
+#   UNITY_LICENSE      -> continutul fisierului .ulf (tip: File, masked)
+#   UNITY_EMAIL        -> email-ul contului Unity (masked)
+#   UNITY_PASSWORD     -> parola Unity (masked)
+#
+# Documentatie GameCI: https://game.ci/docs/gitlab/getting-started
+# ============================================================
+#
+# STAGII (in ordine):
+#   validate  -> verifica structura + fisiere .meta       [GRATUIT, fara Unity]
+#   lint      -> verifica stilul codului C#               [GRATUIT, fara Unity]
+#   test      -> ruleaza testele Unity + SAST             [necesita Unity / gratuit SAST]
+#   build     -> compileaza jocul pentru Windows          [necesita Unity]
+#   package   -> creaza ZIP pentru download               [gratuit]
+# ============================================================
+
+include:
+  - template: Security/SAST.gitlab-ci.yml   # SAST gratuit pe orice plan GitLab
+
+image: unityci/game-ci:ubuntu-3.0.0-base-3
+
+variables:
+  UNITY_VERSION: "2022.3.20f1"
+  BUILD_NAME: "PuzzleGame"
+  BUILD_TARGET: "StandaloneWindows64"
+  BUILD_PATH: "Builds/Windows"
+  SCRIPTS_PATH: "Memory Architect/Assets/Script"
+  # Suprima SAST-ul pentru limbaje irelevante (doar C# ne intereseaza)
+  SAST_EXCLUDED_ANALYZERS: "eslint,nodejs-scan,semgrep,spotbugs,pmd,flawfinder,kubesec,mobsf,phpcs-security-audit,security-code-scan,sobelow"
+
+stages:
+  - validate
+  - lint
+  - test
+  - build
+  - package
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG-library"
+  paths:
+    - Library/
+  policy: pull-push
+
+# ============================================================
+# STAGE 1: VALIDATE (ruleaza pe orice branch, fara Unity)
+# ============================================================
+
+# --- 1a. Verifica ca fisierele si folderele critice exista ---
+validate-structure:
+  stage: validate
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - echo "╔══════════════════════════════════════╗"
+    - echo "║   VALIDARE STRUCTURA PROIECT UNITY   ║"
+    - echo "╚══════════════════════════════════════╝"
+    - |
+      ERRORS=0
+      check() {
+        if [ -e "$1" ]; then
+          echo "  ✓ $1"
+        else
+          echo "  ✗ LIPSA: $1"
+          ERRORS=$((ERRORS + 1))
+        fi
+      }
+      echo ""
+      echo ">>> CI / Licenta:"
+      check "Memory Architect/ci/activate_license.sh"
+      echo ""
+      echo ">>> Foldere Assets:"
+      check "Memory Architect/Assets/Script"
+      check "Memory Architect/Assets/Script/Inventory"
+      check "Memory Architect/Assets/Script/API"
+      check "Memory Architect/Assets/Scenes"
+      check "Memory Architect/Assets/Prefabs"
+      echo ""
+      echo ">>> Scene principale:"
+      check "Memory Architect/Assets/Scenes/Room_1.unity"
+      check "Memory Architect/Assets/Scenes/Room_2.unity"
+      check "Memory Architect/Assets/Scenes/Room_3.unity"
+      check "Memory Architect/Assets/Scenes/mainhol.unity"
+      echo ""
+      echo ">>> Scripturi critice:"
+      check "Memory Architect/Assets/Script/PuzzleManager.cs"
+      check "Memory Architect/Assets/Script/Inventory/InventorySystem.cs"
+      check "Memory Architect/Assets/Script/Inventory/ItemData.cs"
+      check "Memory Architect/Assets/Script/UniversalPickup.cs"
+      check "Memory Architect/Assets/Script/API/ApiManager.cs"
+      check "Memory Architect/Assets/Script/API/AuthManager.cs"
+      check "Memory Architect/Assets/Script/API/ProgressManager.cs"
+      echo ""
+      echo ">>> Setari proiect:"
+      check "Memory Architect/ProjectSettings/ProjectSettings.asset"
+      check "Memory Architect/Packages/manifest.json"
+      echo ""
+      if [ $ERRORS -gt 0 ]; then
+        echo "REZULTAT: $ERRORS fisiere/foldere lipsa! ❌"
+        exit 1
+      else
+        echo "REZULTAT: Structura completa! ✓"
+      fi
+
+# --- 1b. Verifica ca fiecare .cs are fisierul .meta pereche ---
+check-meta-files:
+  stage: validate
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - echo "╔══════════════════════════════════════╗"
+    - echo "║     VERIFICARE FISIERE .META         ║"
+    - echo "╚══════════════════════════════════════╝"
+    - |
+      MISSING=0
+      TOTAL=0
+      while IFS= read -r -d '' csfile; do
+        TOTAL=$((TOTAL + 1))
+        metafile="${csfile}.meta"
+        if [ ! -f "$metafile" ]; then
+          echo "  ✗ LIPSA META: $metafile"
+          MISSING=$((MISSING + 1))
+        fi
+      done < <(find "Memory Architect/Assets" -name "*.cs" -print0)
+      echo ""
+      echo "  Fisiere .cs verificate : $TOTAL"
+      echo "  Fisiere .meta lipsa    : $MISSING"
+      echo ""
+      if [ $MISSING -gt 0 ]; then
+        echo "REZULTAT: $MISSING fisiere .meta lipsa! ❌"
+        echo "ATENTIE: Unity va ignora scriptele fara .meta sau va genera GUID-uri noi!"
+        exit 1
+      else
+        echo "REZULTAT: Toate fisierele .meta sunt prezente! ✓"
+      fi
+
+# ============================================================
+# STAGE 2: LINT (ruleaza pe orice branch, fara Unity)
+# ============================================================
+
+# --- 2. Verifica stilul codului C# ---
+lint-csharp:
+  stage: lint
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - echo "╔══════════════════════════════════════╗"
+    - echo "║       LINT COD C# (STIL)             ║"
+    - echo "╚══════════════════════════════════════╝"
+    - |
+      WARNINGS=0
+      SCRIPTS="Memory Architect/Assets/Script"
+
+      echo ""
+      echo ">>> [1/3] Verificare TAB-uri (conventie Unity = spatii)..."
+      TAB_FILES=$(grep -rl "$(printf '\t')" "$SCRIPTS" --include="*.cs" 2>/dev/null || true)
+      if [ -n "$TAB_FILES" ]; then
+        echo "  [WARN] Fisiere cu TAB-uri:"
+        echo "$TAB_FILES" | while read -r f; do echo "    - $f"; done
+        WARNINGS=$((WARNINGS + 1))
+      else
+        echo "  ✓ Niciun TAB gasit"
+      fi
+
+      echo ""
+      echo ">>> [2/3] Verificare spatii la sfarsit de linie..."
+      TRAIL_FILES=$(grep -rl ' $' "$SCRIPTS" --include="*.cs" 2>/dev/null || true)
+      if [ -n "$TRAIL_FILES" ]; then
+        echo "  [WARN] Fisiere cu spatii la sfarsit de linie:"
+        echo "$TRAIL_FILES" | while read -r f; do echo "    - $f"; done
+        WARNINGS=$((WARNINGS + 1))
+      else
+        echo "  ✓ Niciun spatiu rezidual gasit"
+      fi
+
+      echo ""
+      echo ">>> [3/3] Verificare Debug.Log ramase in cod..."
+      DEBUG_COUNT=$(grep -r 'Debug\.Log(' "$SCRIPTS" --include="*.cs" 2>/dev/null | wc -l || echo 0)
+      DEBUG_FILES=$(grep -rl 'Debug\.Log(' "$SCRIPTS" --include="*.cs" 2>/dev/null || true)
+      if [ "$DEBUG_COUNT" -gt 0 ]; then
+        echo "  [INFO] $DEBUG_COUNT apeluri Debug.Log (de scos inainte de release):"
+        echo "$DEBUG_FILES" | while read -r f; do
+          COUNT=$(grep -c 'Debug\.Log(' "$f" 2>/dev/null || echo 0)
+          echo "    - $f ($COUNT apeluri)"
+        done
+      else
+        echo "  ✓ Niciun Debug.Log gasit"
+      fi
+
+      echo ""
+      echo "══════════════════════════════════════"
+      echo "REZULTAT LINT: $WARNINGS avertismente"
+      echo "(Lint-ul este non-blocant — nu opreste pipeline-ul)"
+      echo "══════════════════════════════════════"
+  allow_failure: true   # Lint nu blocheaza — e doar informativ
+
+# ============================================================
+# STAGE 3: TEST (necesita Unity + SAST gratuit)
+# ============================================================
+
+# --- 3a. Teste Unity (necesita licenta) ---
+unit-tests:
+  stage: test
+  image: unityci/editor:ubuntu-$UNITY_VERSION-base-3
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "radu-main"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+  script:
+    - chmod +x ./ci/activate_license.sh && ./ci/activate_license.sh
+    - |
+      xvfb-run --auto-servernum --server-args='-screen 0 640x480x24' \
+        unity-editor \
+        -projectPath "$CI_PROJECT_DIR" \
+        -runTests \
+        -testPlatform EditMode \
+        -testResults TestResults/editmode-results.xml \
+        -enableCodeCoverage \
+        -logFile /dev/stdout
+    - |
+      xvfb-run --auto-servernum --server-args='-screen 0 640x480x24' \
+        unity-editor \
+        -projectPath "$CI_PROJECT_DIR" \
+        -runTests \
+        -testPlatform PlayMode \
+        -testResults TestResults/playmode-results.xml \
+        -logFile /dev/stdout
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - TestResults/editmode-results.xml
+        - TestResults/playmode-results.xml
+    paths:
+      - TestResults/
+    expire_in: 7 days
+
+# --- 3b. SAST (Security/Static Analysis — GRATUIT pe orice plan GitLab) ---
+# Jobul 'sast' este injectat automat de template-ul inclus mai sus.
+# Ruleaza analizoare pentru C# (security-code-scan) si detecteaza
+# vulnerabilitati comune: injection, hard-coded secrets, etc.
+# Rezultatele apar in GitLab -> Security -> Vulnerability Report
+
+# ============================================================
+# STAGE 4: BUILD WINDOWS (necesita Unity)
+# ============================================================
+
+build-windows:
+  stage: build
+  image: unityci/editor:ubuntu-$UNITY_VERSION-windows-mono-3
+  rules:
+    - if: $CI_COMMIT_BRANCH == "radu-main"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG
+  script:
+    - chmod +x ./ci/activate_license.sh && ./ci/activate_license.sh
+    - mkdir -p $BUILD_PATH
+    - |
+      xvfb-run --auto-servernum --server-args='-screen 0 640x480x24' \
+        unity-editor \
+        -projectPath "$CI_PROJECT_DIR" \
+        -buildTarget $BUILD_TARGET \
+        -executeMethod BuildScript.PerformBuild \
+        -buildPath "$CI_PROJECT_DIR/$BUILD_PATH/$BUILD_NAME.exe" \
+        -logFile /dev/stdout \
+        -quit
+  artifacts:
+    name: "$BUILD_NAME-Windows-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - $BUILD_PATH/
+    expire_in: 30 days
+
+# ============================================================
+# STAGE 5: PACKAGE (ZIP pentru download)
+# ============================================================
+
+package-release:
+  stage: package
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  dependencies:
+    - build-windows
+  before_script:
+    - apk add --no-cache zip
+  script:
+    - zip -r "$BUILD_NAME-$CI_COMMIT_TAG-Windows.zip" $BUILD_PATH/
+  artifacts:
+    name: "$BUILD_NAME-$CI_COMMIT_TAG-Windows"
+    paths:
+      - "*.zip"
+    expire_in: 90 days

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48483931663674ad18c3190687e71735, type: 3}
+  m_Name: ProstheticLeg_Item
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: Prosthetic Leg
+  itemName: Prosthetic Leg Mannequin
+  icon: {fileID: 21300000, guid: 05dd479830d06fd4497e0286ba047b43, type: 3}
+  heldPrefab: {fileID: 381436559624638693, guid: fc7ed5fdec98b4f47ba03da7824c8e87, type: 3}
+  description: 
+  heldPosition: {x: 0.55, y: -0.15, z: 0.45}
+  heldRotation: {x: 15, y: 280, z: 0}
+  heldScale: {x: 0.5, y: 0.5, z: 0.5}

@@ -1,0 +1,43 @@
+# ============================================================
+# Unity (frontend/)
+# ============================================================
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+.utmp/
+*.alf
+*.ulf
+*.blend1
+*.blend1.meta
+
+# Plastic SCM / other VCS metadata that may linger in copied folders
+.plastic/
+.collabnet/
+
+# Visual Studio / Rider / IDE
+.vs/
+*.csproj
+*.sln
+*.slnx
+*.user
+*.suo
+.idea/
+.vscode/
+
+# ============================================================
+# Node (backend/)
+# ============================================================
+node_modules/
+npm-debug.log*
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+Thumbs.db
